@@ -61,6 +61,8 @@ fn main() {
     println!("---- BUILDING {}:latest\n", image_name);
     let docker_build = Command::new("docker")
         .arg("build")
+        .arg("--build-arg")
+        .arg(format!("image_name={}", image_name))
         .arg("-t")
         .arg(format!("{}:latest", image_name))
         .arg("--file")
@@ -74,13 +76,29 @@ fn main() {
 
     if matches.opt_present("r") {
         println!("\n---- RUNNING {}:latest\n", image_name);
+        let port_num: Option<String> = project.get("image", "port");
 
-        Command::new("docker")
-            .arg("run")
-            .arg("-it")
-            .arg("--rm")
-            .arg(format!("{}:latest", image_name))
-            .spawn()
-            .unwrap();
+        match port_num {
+            None => {
+                Command::new("docker")
+                    .arg("run")
+                    .arg("-it")
+                    .arg("--rm")
+                    .arg(format!("{}:latest", image_name))
+                    .spawn()
+                    .unwrap();
+            }
+            Some(port) => {
+                Command::new("docker")
+                    .arg("run")
+                    .arg("-it")
+                    .arg("--rm")
+                    .arg("-p")
+                    .arg(format!("{}:{}", port, port))
+                    .arg(format!("{}:latest", image_name))
+                    .spawn()
+                    .unwrap();
+            }
+        }
     }
 }
