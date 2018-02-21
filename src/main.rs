@@ -6,7 +6,6 @@ use tini::Ini;
 
 use std::process::{exit, Command};
 use std::env::{args, current_dir, set_current_dir};
-use std::fs::{create_dir_all, remove_dir_all};
 use std::path::Path;
 
 fn main() {
@@ -59,12 +58,11 @@ fn main() {
 
     let image_name: String = project.get("image", "name").unwrap();
 
-    println!("---- BUILDING {}-build:latest\n", image_name);
+    println!("---- BUILDING {}:latest\n", image_name);
     let docker_build = Command::new("docker")
-        .current_dir("build")
         .arg("build")
         .arg("-t")
-        .arg(format!("{}-build", image_name))
+        .arg(format!("{}:latest", image_name))
         .arg("--file")
         .arg(format!("Dockerfile-{}", mode))
         .arg(".")
@@ -74,56 +72,15 @@ fn main() {
 
     assert!(docker_build);
 
-    let volume = &current_dir().unwrap().join("deploy").join(&image_name);
-    if let Err(err) = remove_dir_all(volume) {
-        println!("WARNING: {:?}", err);
-    }
-    if let Err(err) = create_dir_all(volume) {
-        println!("ERROR: Could not create directory to hold build artifacts.");
-        println!("Reason: {:?}", err);
-        exit(2);
-    }
-
-    println!("\n---- EXTRACTING BUILD ARTIFACTS");
-
-    let extract_build = Command::new("docker")
-        .arg("run")
-        .arg("-it")
-        .arg("--rm")
-        .arg("-v")
-        .arg(format!("{}:/opt/{}", volume.display(), image_name))
-        .arg(format!("{}-build:latest", image_name))
-        .status()
-        .unwrap()
-        .success();
-
-    assert!(extract_build);
-
-    println!("\n---- BUILDING DEPLOYMENT IMAGE {}:latest\n", image_name);
-    let build_deployment_image = Command::new("docker")
-        .current_dir("deploy")
-        .arg("build")
-        .arg("-t")
-        .arg(format!("{}:latest", image_name))
-        .arg(".")
-        .status()
-        .unwrap()
-        .success();
-
-    assert!(build_deployment_image);
-
     if matches.opt_present("r") {
         println!("\n---- RUNNING {}:latest\n", image_name);
 
-        let build_deployment_image = Command::new("docker")
+        Command::new("docker")
             .arg("run")
             .arg("-it")
             .arg("--rm")
             .arg(format!("{}:latest", image_name))
-            .status()
-            .unwrap()
-            .success();
-
-        assert!(build_deployment_image);
+            .spawn()
+            .unwrap();
     }
 }
