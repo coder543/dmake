@@ -85,7 +85,7 @@ fn main() {
                     .arg("-it")
                     .arg("--rm")
                     .arg(format!("{}:latest", image_name))
-                    .spawn()
+                    .status()
                     .unwrap();
             }
             Some(port) => {
@@ -96,7 +96,7 @@ fn main() {
                     .arg("-p")
                     .arg(format!("{}:{}", port, port))
                     .arg(format!("{}:latest", image_name))
-                    .spawn()
+                    .status()
                     .unwrap();
             }
         }
