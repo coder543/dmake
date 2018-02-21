@@ -15,14 +15,27 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optflag("", "deploy", "deploy to Docker Hub");
+    opts.optflag("r", "run", "run image locally after it is built");
     opts.optflag("h", "help", "print this help menu");
+
     let matches = match opts.parse(args) {
         Ok(m) => m,
         Err(f) => panic!(f.to_string()),
     };
+
     if matches.opt_present("h") {
         let brief = format!("Usage: {} [options] [mode]", program);
         println!("{}", opts.usage(&brief));
+        return;
+    }
+
+    if matches.opt_present("deploy") && matches.opt_present("r") {
+        println!("Running locally and deploying should not be done together");
+        return;
+    }
+
+    if matches.opt_present("deploy") {
+        println!("Sorry, automatic deployment isn't supported yet");
         return;
     }
 
@@ -46,6 +59,7 @@ fn main() {
 
     let image_name: String = project.get("image", "name").unwrap();
 
+    println!("---- BUILDING {}-build:latest\n", image_name);
     let docker_build = Command::new("docker")
         .current_dir("build")
         .arg("build")
@@ -70,6 +84,8 @@ fn main() {
         exit(2);
     }
 
+    println!("\n---- EXTRACTING BUILD ARTIFACTS");
+
     let extract_build = Command::new("docker")
         .arg("run")
         .arg("-it")
@@ -83,15 +99,31 @@ fn main() {
 
     assert!(extract_build);
 
+    println!("\n---- BUILDING DEPLOYMENT IMAGE {}:latest\n", image_name);
     let build_deployment_image = Command::new("docker")
         .current_dir("deploy")
         .arg("build")
         .arg("-t")
-        .arg(&image_name)
+        .arg(format!("{}:latest", image_name))
         .arg(".")
         .status()
         .unwrap()
         .success();
 
     assert!(build_deployment_image);
+
+    if matches.opt_present("r") {
+        println!("\n---- RUNNING {}:latest\n", image_name);
+
+        let build_deployment_image = Command::new("docker")
+            .arg("run")
+            .arg("-it")
+            .arg("--rm")
+            .arg(format!("{}:latest", image_name))
+            .status()
+            .unwrap()
+            .success();
+
+        assert!(build_deployment_image);
+    }
 }
